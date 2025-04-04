@@ -1,0 +1,175 @@
+{% assign location = 'floating' %}
+{% assign selectedVariant = product.selected_or_first_available_variant %}
+<div class="floating-bb-container">
+  <div class="floating-bb--content-grid">
+    
+    <div class="floating-bb--variant-image">
+      <img id="bb-variant-image" src="{{ selectedVariant.image.src | img_url: 'master' }}">
+    </div>
+    
+    <div class="floating-bb--title">
+      <h2>{{ product.title }} - <span id="bb-variant-title">{{ selectedVariant.title }}</span></h2>
+    </div>
+
+    <div class="floating-bb--bb-price">
+      <product-form
+        class="product-form"
+        data-hide-errors="{{ gift_card_recipient_feature_active }}"
+        data-section-id="{{ section.id }}"
+        style="margin:0;"
+      >
+        <div class="upsellATCbuttonContainer">
+          {%- form 'product',
+              product,
+              id: product_form_id,
+              class: 'form',
+              novalidate: 'novalidate',
+              data-type: 'add-to-cart-form'
+            -%}
+              <input
+                type="hidden"
+                name="id"
+                value="{{ selectedVariant.id }}"
+                {% if selectedVariant.available == false or quantity_rule_soldout %}
+                  disabled
+                {% endif %}
+                class="product-variant-id-{{ location }}"
+              >
+              <div class="product-form__buttons">
+                {%- liquid
+                  assign check_against_inventory = true
+                  if product.selected_or_first_available_variant.inventory_management != 'shopify' or product.selected_or_first_available_variant.inventory_policy == 'continue'
+                    assign check_against_inventory = false
+                  endif
+                  if product.selected_or_first_available_variant.quantity_rule.min > product.selected_or_first_available_variant.inventory_quantity and check_against_inventory
+                    assign quantity_rule_soldout = true
+                  endif
+                -%}
+                <button
+                  id="productSubmitButton-{{ product.id }}-{{ location }}"
+                  type="submit"
+                  name="add"
+                  class="product-form__submit button button--full-width {% if show_dynamic_checkout %}button--secondary{% else %}button--primary{% endif %}"
+                  {% if selectedVariant.available == false or quantity_rule_soldout %}
+                    disabled
+                  {% endif %}
+                  style="margin-bottom:0;"
+                >
+                  <span>
+                    {%- if selectedVariant.available == false or quantity_rule_soldout -%}
+                      {{ 'products.product.sold_out' | t }}
+                    {%- else -%}
+                      Add - <span id="variant-price-{{ product.id }}-{{ location }}">{{ product.selected_or_first_available_variant.price | money | strip_html }}</span>
+                    {%- endif -%}
+                  </span>
+                  {%- render 'loading-spinner' -%}
+                </button>
+              </div>
+            {%- endform -%}
+        </div>
+      </product-form>
+    </div>
+    
+  </div>
+</div>
+
+<style>
+  .floating-bb-container {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    border-top: 1px solid lightgray;
+    background: white;
+    z-index: 1000;
+  }
+  .floating-bb--content-grid {
+    display: grid;
+    grid-template-areas:
+      "title bb";
+    grid-template-columns: 1fr 33.3%;
+    padding: 1.5rem 2.5rem;
+    align-items: center;
+    color: #1f1d24;
+  }
+  .floating-bb--variant-image {
+    grid-area: image;
+    display: none;
+  }
+  .floating-bb--title {
+    grid-area: title;
+    text-align: left;
+  }
+  .floating-bb--title h2 {
+    margin: 0;
+  }
+  .floating-bb--bb-price {
+    grid-area: bb;
+    width: 100%;
+  }
+  @media screen and (max-width: 750px) {
+    .floating-bb--content-grid {
+      grid-template-areas:
+        "image title"
+        "image bb";
+      grid-template-columns: 20% 1fr;
+      column-gap: 15px;
+      padding: 1.5rem;
+    }
+    .floating-bb--variant-image {
+      display: block;
+      width: 100%;
+    }
+    .floating-bb--variant-image img {
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      border: 1px solid lightgray;
+    }
+    .floating-bb--title h2 {
+      font-size: 16px;
+    }
+  }
+</style>
+
+<script>
+  // toggle floating buy button visibility
+  const originalBB = document.querySelector('#originalBB');
+  const gallery = document.querySelector('.c-product-media-gallery--section');
+  const floatingBB = document.querySelector('.floating-bb-container');
+  
+  function toggleFloatingBB() {
+    if (!originalBB || !gallery || !floatingBB) return;
+    
+    const originalBBRect = originalBB.getBoundingClientRect();
+    const galleryRect = gallery.getBoundingClientRect();
+
+    if (originalBBRect.top < window.innerHeight && originalBBRect.bottom > 0) {
+      floatingBB.style.display = "none";
+    } else if (window.innerWidth < 750 && galleryRect.top < window.innerHeight && galleryRect.bottom > 0) {
+      floatingBB.style.display = "none";
+    } else {
+      floatingBB.style.display = "block";
+    }
+  }
+
+  const bbVariantTitle = document.querySelector('#bb-variant-title');
+  const bbVariantImage = document.querySelector('#bb-variant-image');
+  const floatingBuyButton = document.querySelector('.product-variant-id-floating')
+  
+  function updateFloatingBB(variantTitle, variantImage, variantId) {
+    if (bbVariantTitle) {
+      bbVariantTitle.innerText = `${variantTitle}`;
+    }
+    if (bbVariantImage) {
+      bbVariantImage.src = `${variantImage}`;
+    }
+    if (floatingBuyButton) {
+      floatingBuyButton.value = `${variantId}`;
+    }
+  }
+
+  window.addEventListener("scroll", toggleFloatingBB);
+  window.addEventListener("resize", toggleFloatingBB);
+</script>
